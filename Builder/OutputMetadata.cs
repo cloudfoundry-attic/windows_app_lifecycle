@@ -16,11 +16,11 @@ namespace Builder
             get { return JsonConvert.SerializeObject(ExecutionMetadata); }
         }
 
-        [JsonProperty("detected_start_command")]
-        public DetectedStartCommand DetectedStartCommand {
+        [JsonProperty("process_types")]
+        public ProcessTypes ProcessTypes {
             get
             {
-                return new DetectedStartCommand()
+                return new ProcessTypes()
                 {
                     Web =
                         (ExecutionMetadata.StartCommand + " " + String.Join(" ", ExecutionMetadata.StartCommandArgs))
@@ -28,9 +28,15 @@ namespace Builder
                 };
             }
         }
+
+        [JsonProperty("lifecycle_metadata")]
+        public string LifecycleMetadata{ 
+        {
+            get { return new LifecycleMetadata() }
+        }
     }
 
-    public class DetectedStartCommand
+    public class ProcessTypes 
     {
         [JsonProperty("web")]
         public string Web { get; set; }
@@ -56,6 +62,27 @@ namespace Builder
         {
             get;
             set;
+        }
+    }
+
+    public class LifecycleMetadata 
+    {
+        public LifecycleMetadata()
+        {
+            DetectedBuildpack = "windows";
+            BuildpackKey = ""; 
+        }
+
+        [JsonProperty("detected_buildpack")]
+        public string DetectedBuildpack 
+        {
+            get;
+        }
+
+        [JsonProperty("buildpack_key")]
+        public string BuildpackKey
+        {
+            get;
         }
     }
 }
