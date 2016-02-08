@@ -44,10 +44,10 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArgumentEscaper.cs" />
     <Compile Include="DebuggerShim.cs" />
     <Compile Include="Features\LauncherCanRunStartCommandSpec.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Specs\ArgumentEscaperSpec.cs" />
     <Compile Include="Specs\IntegrationSpec.cs" />
   </ItemGroup>
   <ItemGroup>

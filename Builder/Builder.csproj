@@ -45,9 +45,12 @@
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml" />
+    <Reference Include="YamlDotNet, Version=3.8.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\YamlDotNet.3.8.0\lib\net35\YamlDotNet.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Models\Models.cs" />
     <Compile Include="OutputMetadata.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="Program.cs" />
@@ -58,7 +61,6 @@
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
     <Compile Include="TarGZFile.cs" />
-    <Compile Include="TempDirectory.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

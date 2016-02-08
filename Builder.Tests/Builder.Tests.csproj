@@ -65,11 +65,8 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="Specs\OutputMetadataTest.cs" />
     <Compile Include="Specs\StartCommandTest.cs" />
     <Compile Include="Specs\TarGZFileTest.cs" />
-    <Compile Include="Specs\ConnectionStringTest.cs" />
-    <Compile Include="Specs\TempDirectoryTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

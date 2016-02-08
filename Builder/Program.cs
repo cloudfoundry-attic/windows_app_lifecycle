@@ -1,57 +1,99 @@
-﻿using Builder.Models;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Xml;
+using System.Security.Cryptography;
+using System.Text;
+using YamlDotNet.Serialization;
 
 namespace Builder
 {
     public class Program
     {
-        public static ExecutionMetadata GenerateExecutionMetadata(IList<string> files)
+        private static string[] buildpackBinaries = new string[] { "detect", "compile", "release" };
+
+        private static string[] binariesExtensions = new string[] { ".COM", ".EXE", ".BAT", ".CMD" };
+
+        private static bool IsWindowsBuildpack(string buildpackDir)
         {
-            var executionMetadata = new ExecutionMetadata()
+            foreach (var app in buildpackBinaries)
             {
-                StartCommand = "",
-                StartCommandArgs = new string[] { },
-            };
-            var procfiles = files.Where(x => Path.GetFileName(x).ToLower() == "procfile").ToList();
-            var executables = files.Where(x => x.EndsWith(".exe")).ToList();
-            if (procfiles.Any())
-            {
-                var file = File.ReadAllLines(procfiles.First());
-                var webline = file.Where(x => x.StartsWith("web:"));
-                if (webline.Any())
+                bool found = false;
+                foreach (string ext in binariesExtensions)
                 {
-                    var contents = webline.First().Substring(4).Trim().Split(new[] { ' ' });
-                    executionMetadata.StartCommand = contents[0];
-                    executionMetadata.StartCommandArgs = contents.Skip(1).ToArray();
+                    if (File.Exists(Path.Combine(buildpackDir, "bin", app + ext)))
+                    {
+                        found = true;
+                    }
                 }
-                else
+                if (!found)
                 {
-                    throw new Exception("Procfile didn't contain a web line");
+                    return false;
                 }
             }
-            else if (files.Any(x => Path.GetFileName(x).ToLower() == "web.config"))
+            return true;
+        }
+
+        private static string GetExecutable(string path, string file)
+        {
+            foreach (string ext in binariesExtensions)
             {
-                executionMetadata.StartCommand = @"..\tmp\lifecycle\WebAppServer.exe";
-            }
-            else if (executables.Any())
-            {
-                if (executables.Count() > 1)
-                    throw new Exception("Directory contained more than 1 executable file.");
-                executionMetadata.StartCommand = Path.GetFileName(executables.First());
-                executionMetadata.StartCommandArgs = new string[] { };
-            }
-            else
-            {
-                Console.Error.WriteLine("No start command detected");
+                if (File.Exists(Path.Combine(path, file + ext)))
+                {
+                    return Path.Combine(path, file + ext);
+                }
             }
 
-            return executionMetadata;
+            throw new Exception(String.Format("No executable found for '{0}' in '{1}'", file, path));
         }
+
+        private static int RunBuildpackProcess(string path, string args, TextWriter outputStream, TextWriter errorStream)
+        {
+            var p = new Process();
+            p.StartInfo.FileName = path;
+            p.StartInfo.Arguments = args;
+            p.StartInfo.UseShellExecute = false;
+            p.StartInfo.CreateNoWindow = true;
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.RedirectStandardError = true;
+
+            p.OutputDataReceived += (object sender, DataReceivedEventArgs e) =>
+            {
+                outputStream.WriteLine(e.Data);
+            };
+            p.ErrorDataReceived += (object sender, DataReceivedEventArgs e) =>
+            {
+                errorStream.WriteLine(e.Data);
+            };
+            p.Start();
+            p.BeginOutputReadLine();
+            p.BeginErrorReadLine();
+            p.WaitForExit();
+
+            return p.ExitCode;
+        }
+
+        private static string GetBuildpackDirName(string buildpackName)
+        {
+            using (MD5 md5Hash = MD5.Create())
+            {
+                byte[] data = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(buildpackName));
+                return BitConverter.ToString(data).Replace("-", "");
+            }
+        }
+
+        private static void SanitizeArgs(string[] args)
+        {
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i].StartsWith("-") && !args[i].StartsWith("--"))
+                {
+                    args[i] = "-" + args[i];
+                }
+            }
+        }
+
 
         static void Main(string[] args)
         {
@@ -67,109 +109,110 @@ namespace Builder
 
         private static void Run(Options options)
         {
-            var appPath = Directory.GetCurrentDirectory() + options.BuildDir;
+            var rootDir = Directory.GetCurrentDirectory();
+
+            var appPath = rootDir + options.BuildDir;
             var files = Directory.EnumerateFiles(appPath).ToList();
 
-            // Set connection string if there's a web config
-            SetConnectionStrings(files);
 
-            // Result.JSON
-            var obj = GenerateOutputMetadata(files);
-            File.WriteAllText(Directory.GetCurrentDirectory() + options.OutputMetadata, JsonConvert.SerializeObject(obj));
-
-            var buildCacheDir = Directory.GetCurrentDirectory() + options.BuildArtifactsCacheDir;
+            var buildCacheDir = rootDir + options.BuildArtifactsCacheDir;
             Directory.CreateDirectory(buildCacheDir);
 
-            var outputCache = Directory.GetCurrentDirectory() + options.OutputBuildArtifactsCache;
-            TarGZFile.CreateFromDirectory(buildCacheDir, outputCache);
+            var outputCache = rootDir + options.OutputBuildArtifactsCache;
+            var outputDropletPath = rootDir + options.OutputDroplet;
 
-            // create droplet
-            var outputDropletPath = Directory.GetCurrentDirectory() + options.OutputDroplet;
-            TarGZFile.CreateFromDirectory(appPath, outputDropletPath);
-        }
+            string detectedBuildpack = "";
+            string detectedBuildpackDir = "";
+            string detectOutput = "";
+            bool buildpackDetected = false;
 
-        private static void SetConnectionStrings(IList<string> files)
-        {
-            var webConfig = files.FirstOrDefault(x => Path.GetFileName(x).ToLower() == "web.config");
-            var vcapServices = Environment.GetEnvironmentVariable("VCAP_SERVICES");
-            if (webConfig == null || vcapServices == null)
+            var buildpacks = options.BuildpackOrder.Split(new char[] { ',' });
+            foreach (var buildpackName in buildpacks)
             {
-                return;
-            }
-            var services = JsonConvert.DeserializeObject<Services>(vcapServices);
-            var doc = new XmlDocument();
-            doc.Load(webConfig);
-            SetConnectionStrings(doc, services);
-            doc.Save(webConfig);
-        }
+                var buildpackDir = rootDir + Path.Combine(options.BuildpacksDir, GetBuildpackDirName(buildpackName));
 
-        public static void SetConnectionStrings(XmlDocument doc, Services services)
-        {
-            if (services.UserProvided.Count == 0)
-            {
-                return;
-            }
-
-            var xmlNode = doc.SelectSingleNode("//configuration/connectionStrings");
-            if (xmlNode == null)
-            {
-                xmlNode = doc.SelectSingleNode("//configuration");
-                if (xmlNode == null)
-                {
-                    throw new Exception("invalid webconfig");
-                }
-                var connectionStrings = doc.CreateElement("connectionStrings", null);
-                xmlNode.AppendChild(connectionStrings);
-                xmlNode = connectionStrings;
-            }
-            xmlNode.RemoveAll();
-
-            foreach (var service in services.UserProvided)
-            {
-                var addNode = doc.CreateElement("add", null);
-                string name;
-                service.Credentials.TryGetValue("name", out name);
-                string connectionString;
-                service.Credentials.TryGetValue("connectionString", out connectionString);
-                string providerName;
-                service.Credentials.TryGetValue("providerName", out providerName);
-                if (name == null || connectionString == null || providerName == null)
+                // Console.WriteLine("DEBUG buildpackDir {0}", buildpackDir);
+                if (!IsWindowsBuildpack(buildpackDir))
                 {
                     continue;
                 }
-                AddAttribute(addNode, "name", name);
-                AddAttribute(addNode, "connectionString", connectionString);
-                AddAttribute(addNode, "providerName", providerName);
-                xmlNode.AppendChild(addNode);
-            }
-        }
 
-        private static void AddAttribute(XmlElement elem, string name, string value)
-        {
-            var doc = elem.OwnerDocument;
-            var attr = doc.CreateAttribute(name);
-            attr.Value = value;
-            elem.Attributes.Append(attr);
-        }
+                // Console.WriteLine("DEBUG options.skipDetect {0}", options.skipDetect);
 
-        private static OutputMetadata GenerateOutputMetadata(IList<string> files)
-        {
-            var executionMetadata = GenerateExecutionMetadata(files);
-            return new OutputMetadata()
-            {
-                ExecutionMetadata=  executionMetadata,
-            };
-        }
-
-        private static void SanitizeArgs(string[] args)
-        {
-            for (int i = 0; i < args.Length; i++)
-            {
-                if (args[i].StartsWith("-") && !args[i].StartsWith("--"))
+                if (StringComparer.InvariantCultureIgnoreCase.Compare(options.skipDetect, "true") != 0)
                 {
-                    args[i] = "-" + args[i];
+                    var detectPath = GetExecutable(Path.Combine(buildpackDir, "bin"), "detect");
+
+                    var outputStream = new StringWriter();
+                    var exitCode = RunBuildpackProcess(detectPath, appPath, outputStream, Console.Error);
+                    detectOutput = outputStream.ToString();
+
+                    detectOutput.TrimEnd(new char[] { '\n' });
+
+                    if (exitCode == 0)
+                    {
+                        detectedBuildpack = buildpackName;
+                        detectedBuildpackDir = buildpackDir;
+                        buildpackDetected = true;
+                        break;
+                    }
+                }
+                else
+                {
+                    detectedBuildpack = buildpackName;
+                    detectedBuildpackDir = buildpackDir;
+                    buildpackDetected = true;
+                    break;
                 }
             }
+
+            if (!buildpackDetected)
+            {
+                Console.WriteLine("None of the buildpacks detected a compatible application");
+                Environment.ExitCode = 222;
+                return;
+            }
+
+            var compilePath = GetExecutable(Path.Combine(detectedBuildpackDir, "bin"), "compile");
+
+            var compoileExitCode = RunBuildpackProcess(compilePath, appPath + " " + buildCacheDir, Console.Out, Console.Error);
+            if (compoileExitCode != 0)
+            {
+                Console.WriteLine("Failed to compile droplet");
+                Environment.ExitCode = 223;
+                return;
+            }
+
+            var releaseBinPath = GetExecutable(Path.Combine(detectedBuildpackDir, "bin"), "release");
+
+            var releaseStream = new StringWriter();
+            var releaseExitCode = RunBuildpackProcess(releaseBinPath, appPath, releaseStream, Console.Error);
+            if (releaseExitCode != 0)
+            {
+                Console.WriteLine("Failed to build droplet release");
+                Environment.ExitCode = 224;
+                return;
+            }
+
+            var releaseOutput = releaseStream.ToString();
+            ReleaseInfo releaseInfo = new Deserializer(ignoreUnmatched: true).Deserialize<ReleaseInfo>(new StringReader(releaseOutput));
+            
+            var outputMetadata = new OutputMetadata()
+            {
+                LifecycleType = "buildpack",
+                LifecycleMetadata = new LifecycleMetadata()
+                {
+                    BuildpackKey = detectedBuildpack,
+                    DetectedBuildpack = detectOutput
+                },
+                ProcessTypes = releaseInfo.defaultProcessType,
+                ExecutionMetadata = ""
+            };
+
+            File.WriteAllText(rootDir + options.OutputMetadata, JsonConvert.SerializeObject(outputMetadata));
+
+            TarGZFile.CreateFromDirectory(buildCacheDir + "\\", outputCache);
+            TarGZFile.CreateFromDirectory(appPath, outputDropletPath);
         }
     }
 }
