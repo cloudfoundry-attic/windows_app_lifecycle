@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -13,7 +14,7 @@ namespace Builder
     {
         private static string[] buildpackBinaries = new string[] { "detect", "compile", "release" };
 
-        private static string[] binariesExtensions = new string[] { ".COM", ".EXE", ".BAT", ".CMD" };
+        private static string[] binariesExtensions = new string[] { ".EXE", ".BAT", ".CMD" };
 
         private static bool IsWindowsBuildpack(string buildpackDir)
         {
@@ -94,6 +95,22 @@ namespace Builder
             }
         }
 
+        private static Dictionary<string, string> GetProcfileProcessTypes(List<string> files)
+        {
+            var procfiles = files.Where(x => Path.GetFileName(x).ToLower() == "procfile").ToList();
+
+            if (procfiles.Any())
+            {
+                using (var procfileStream = new StreamReader(procfiles.First()))
+                {
+                    return new Deserializer().Deserialize<Dictionary<string, string>>(procfileStream);
+                }
+            }
+            else
+            {
+                return null;
+            }
+        }
 
         static void Main(string[] args)
         {
@@ -112,8 +129,7 @@ namespace Builder
             var rootDir = Directory.GetCurrentDirectory();
 
             var appPath = rootDir + options.BuildDir;
-            var files = Directory.EnumerateFiles(appPath).ToList();
-
+            var buildpacksDir = rootDir + options.BuildpacksDir;
 
             var buildCacheDir = rootDir + options.BuildArtifactsCacheDir;
             Directory.CreateDirectory(buildCacheDir);
@@ -126,18 +142,20 @@ namespace Builder
             string detectOutput = "";
             bool buildpackDetected = false;
 
-            var buildpacks = options.BuildpackOrder.Split(new char[] { ',' });
+            var buildpacks = new string[0];
+            if (options.BuildpackOrder != null)
+            {
+                buildpacks = options.BuildpackOrder.Split(new char[] { ',' });
+            }
+
             foreach (var buildpackName in buildpacks)
             {
-                var buildpackDir = rootDir + Path.Combine(options.BuildpacksDir, GetBuildpackDirName(buildpackName));
+                var buildpackDir = Path.Combine(buildpacksDir, GetBuildpackDirName(buildpackName));
 
-                // Console.WriteLine("DEBUG buildpackDir {0}", buildpackDir);
                 if (!IsWindowsBuildpack(buildpackDir))
                 {
                     continue;
                 }
-
-                // Console.WriteLine("DEBUG options.skipDetect {0}", options.skipDetect);
 
                 if (StringComparer.InvariantCultureIgnoreCase.Compare(options.skipDetect, "true") != 0)
                 {
@@ -147,7 +165,7 @@ namespace Builder
                     var exitCode = RunBuildpackProcess(detectPath, appPath, outputStream, Console.Error);
                     detectOutput = outputStream.ToString();
 
-                    detectOutput.TrimEnd(new char[] { '\n' });
+                    detectOutput = detectOutput.TrimEnd(new char[] { '\n', '\r' });
 
                     if (exitCode == 0)
                     {
@@ -169,8 +187,7 @@ namespace Builder
             if (!buildpackDetected)
             {
                 Console.WriteLine("None of the buildpacks detected a compatible application");
-                Environment.ExitCode = 222;
-                return;
+                Environment.Exit(222);
             }
 
             var compilePath = GetExecutable(Path.Combine(detectedBuildpackDir, "bin"), "compile");
@@ -179,9 +196,10 @@ namespace Builder
             if (compoileExitCode != 0)
             {
                 Console.WriteLine("Failed to compile droplet");
-                Environment.ExitCode = 223;
-                return;
+                Environment.Exit(223);
             }
+
+            Dictionary<string, string> procfileProcessTypes = GetProcfileProcessTypes(Directory.EnumerateFiles(appPath).ToList());
 
             var releaseBinPath = GetExecutable(Path.Combine(detectedBuildpackDir, "bin"), "release");
 
@@ -190,13 +208,12 @@ namespace Builder
             if (releaseExitCode != 0)
             {
                 Console.WriteLine("Failed to build droplet release");
-                Environment.ExitCode = 224;
-                return;
+                Environment.Exit(224);
             }
 
             var releaseOutput = releaseStream.ToString();
             ReleaseInfo releaseInfo = new Deserializer(ignoreUnmatched: true).Deserialize<ReleaseInfo>(new StringReader(releaseOutput));
-            
+
             var outputMetadata = new OutputMetadata()
             {
                 LifecycleType = "buildpack",
@@ -205,7 +222,7 @@ namespace Builder
                     BuildpackKey = detectedBuildpack,
                     DetectedBuildpack = detectOutput
                 },
-                ProcessTypes = releaseInfo.defaultProcessType,
+                ProcessTypes = procfileProcessTypes ?? releaseInfo.defaultProcessTypes,
                 ExecutionMetadata = ""
             };
 

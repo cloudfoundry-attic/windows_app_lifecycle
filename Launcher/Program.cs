@@ -20,9 +20,6 @@ namespace Launcher
     {
         private static int Main(string[] args)
         {
-            //if (Environment.GetEnvironmentVariable("ARGJSON") != null && Environment.GetEnvironmentVariable("ARGJSON").Length >= 2)
-            //    args = JsonConvert.DeserializeObject<string[]>(Environment.GetEnvironmentVariable("ARGJSON"));
-
             if (args.Length < 2)
             {
                 Console.Error.WriteLine("Launcher was run with insufficient arguments. Usage: launcher.exe <app directory> <start command>");
@@ -55,7 +52,9 @@ namespace Launcher
             var result = CreateProcess(null, executablePathAndArgs, IntPtr.Zero, IntPtr.Zero, false, 0, IntPtr.Zero, null, ref startupInformation, out processInformation);
             if (!result)
             {
-                return Marshal.GetLastWin32Error();
+                var errorCode = Marshal.GetLastWin32Error();
+                Console.Error.WriteLine(new System.ComponentModel.Win32Exception(errorCode).Message);
+                return errorCode;
             }
             WaitForSingleObject(processInformation.hProcess, INFINITE);
             UInt32 exitCode = 0;

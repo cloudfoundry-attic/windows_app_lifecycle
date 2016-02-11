@@ -11,58 +11,67 @@ namespace Builder.Tests.Specs.Features
 {
     class StagerCanRunBuilderSpec : nspec
     {
-        private string arguments;
-
         private void describe_()
         {
+            string builderBinary = null;
+            var arguments = new Dictionary<string, string>();
             Process process = null;
+            string stdout = null;
+            string stderr = null;
+
             string currentDirectory = null;
             string workingDirectory = null;
             string appDir = null;
             string tmpDir = null;
+            string buildpacksDir = null;
 
             act = () =>
             {
+                process = new Process
+                {
+                    StartInfo =
+                    {
+                        FileName = builderBinary,
+                        Arguments = arguments.Select(x => x.Key + " " + x.Value).Aggregate((x, y) => x + " " + y),
+                        UseShellExecute = false,
+                        RedirectStandardError = true,
+                        RedirectStandardOutput = true
+                    }
+                };
+
                 process.StartInfo.WorkingDirectory = workingDirectory;
                 process.Start();
+                stdout = process.StandardOutput.ReadToEnd();
+                stderr = process.StandardError.ReadToEnd();
                 process.WaitForExit();
-                process.ExitCode.should_be(0);
             };
 
             before = () =>
             {
                 workingDirectory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                 tmpDir = Path.Combine(workingDirectory, "tmp");
-                appDir = Path.Combine(workingDirectory, "app");
+                appDir = Path.Combine(tmpDir, "app");
+                buildpacksDir = Path.Combine(tmpDir, "buildpacks");
                 Directory.CreateDirectory(tmpDir);
                 Directory.CreateDirectory(appDir);
+                Directory.CreateDirectory(buildpacksDir);
 
                 currentDirectory =
                     Path.GetFullPath(
                         Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().CodeBase, "..", "..", "..",
                             "..").Replace("file:///", ""));
-                var builderBinary = Path.Combine(currentDirectory, "Builder", "bin", "Builder.exe");
+                builderBinary = Path.Combine(currentDirectory, "Builder", "bin", "Builder.exe");
 
                 arguments = new Dictionary<string, string>
                 {
-                    {"-buildDir", "/app"},
+                    {"-buildDir", "/tmp/app"},
+                    {"-buildArtifactsCacheDir", "/tmp/cache"},
+                    {"-buildpacksDir", "/tmp/buildpacks"},
                     {"-outputDroplet", "/tmp/droplet"},
                     {"-outputMetadata", "/tmp/result.json"},
-                    {"-buildArtifactsCacheDir", "/tmp/cache"},
-                    {"-buildpackOrder", "buildpackGuid1,buildpackGuid2"},
                     {"-outputBuildArtifactsCache", "/tmp/output-cache"},
+                    {"-skipDetect", "false"},
                     {"-skipCertVerify", "false"}
-                }
-                    .Select(x => x.Key + " " + x.Value)
-                    .Aggregate((x, y) => x + " " + y);
-                process = new Process
-                {
-                    StartInfo =
-                    {
-                        FileName = builderBinary,
-                        Arguments = arguments,
-                        UseShellExecute = false,
-                    }
                 };
             };
 
@@ -71,30 +80,90 @@ namespace Builder.Tests.Specs.Features
                 Directory.Delete(workingDirectory, true);
             };
 
-            context["given no procfile, executable or Web.conf exists"] = () =>
+            context["given no buildpacks"] = () =>
             {
                 string resultFile = null;
 
                 before = () =>
                 {
                     resultFile = Path.Combine(tmpDir, "result.json");
+                    arguments.Remove("-buildpackOrder");
+                };
+
+                it["Does not create the result.json"] = () =>
+                {
+                    File.Exists(resultFile).should_be_false();
+                };
+
+                it["Exit code is 222"] = () =>
+                {
+                    process.ExitCode.should_be(222);
+                };
+            };
+
+            context["given a buildpack and a non-valid app"] = () =>
+            {
+                string resultFile = null;
+
+                before = () =>
+                {
+                    resultFile = Path.Combine(tmpDir, "result.json");
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                        Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
+                        Path.Combine(buildpacksDir, Utils.MD5Hash("run-buildpack"))
+                    );
+
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "no-app"), appDir);
+                    arguments["-buildpackOrder"] = "run-buildpack";
+                };
+
+                it["Does not create the result.json"] = () =>
+                {
+                    File.Exists(resultFile).should_be_false();
+                };
+
+                it["Exit code is 0"] = () =>
+                {
+                    process.ExitCode.should_be(222);
+                };
+            };
+
+            context["given valid buildpacks and a valid app"] = () =>
+            {
+                string resultFile = null;
+
+                before = () =>
+                {
+                    resultFile = Path.Combine(tmpDir, "result.json");
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                        Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
+                        Path.Combine(buildpacksDir, Utils.MD5Hash("run-buildpack"))
+                    );
+
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                        Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "nop-buildpack"),
+                        Path.Combine(buildpacksDir, Utils.MD5Hash("nop-buildpack"))
+                    );
+
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
+                    arguments["-buildpackOrder"] = "run-buildpack";
+                };
+
+                it["Exit code is 0"] = () =>
+                {
+                    process.ExitCode.should_be(0);
+                };
+
+                it["Compile stdout and stderr is redirected"] = () =>
+                {
+                    stdout.should_contain("Nothing to do ...");
+                    stderr.should_contain("No error");
                 };
 
                 it["Creates the result.json"] = () =>
                 {
                     File.Exists(resultFile).should_be_true();
-                };
-            };
-
-            context["given i have an app similar to nora"] = () =>
-            {
-                string resultFile = null;
-
-                before = () =>
-                {
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "app"), appDir);
-                    resultFile = Path.Combine(tmpDir, "result.json");
-                };
+                };              
 
                 it["Creates an empty build artifacts cache dir"] = () =>
                 {
@@ -106,7 +175,7 @@ namespace Builder.Tests.Specs.Features
                 {
                     var fileName = Path.Combine(tmpDir, "output-cache");
                     File.Exists(fileName).should_be_true();
-                    using(var file = File.OpenRead(fileName))
+                    using (var file = File.OpenRead(fileName))
                     {
                         file.Length.should_be_greater_than(0);
                     }
@@ -118,12 +187,7 @@ namespace Builder.Tests.Specs.Features
                     File.Exists(fileName).should_be_true();
                 };
 
-                it["Creates the result.json"] = () =>
-                {
-                    File.Exists(resultFile).should_be_true();
-                };
-
-                context["the json file"] = () =>
+                context["the result.json file"] = () =>
                 {
                     JObject result = null;
 
@@ -132,20 +196,12 @@ namespace Builder.Tests.Specs.Features
                         result = JObject.Parse(File.ReadAllText(resultFile));
                     };
 
-                    it["includes the start command for 'web'"] = () =>
+                    it["includes the start command for 'web' from buildpack release script"] = () =>
                     {
                         var processTypes = result["process_types"].Value<JObject>();
                         var webStartCommand = processTypes["web"].Value<string>();
-                        webStartCommand.should_be(@"..\tmp\lifecycle\WebAppServer.exe");
+                        webStartCommand.should_be(@"run.bat");
                     };
-
-                    //it["includes execution metadata"] = () =>
-                    //{
-                    //    var executionMetadataJson = result["execution_metadata"].Value<string>();
-                    //    //var executionMetadata = JsonConvert.DeserializeObject<ExecutionMetadata>(executionMetadataJson);
-                    //    //executionMetadata.StartCommand.should_be(@"..\tmp\lifecycle\WebAppServer.exe");
-                    //    //executionMetadata.StartCommandArgs.should_be(new string[] { });
-                    //};
 
                     it["doesn't have any other process types"] = () =>
                     {
@@ -157,61 +213,59 @@ namespace Builder.Tests.Specs.Features
                     {
                         result["lifecycle_type"].Value<string>().should_be("buildpack");
                         var metadata = result["lifecycle_metadata"].Value<JObject>();
-                        metadata["detected_buildpack"].Value<string>().should_be("windows");
-                        metadata["buildpack_key"].Value<string>().should_be("");
+                        metadata["detected_buildpack"].Value<string>().should_be("Run Buildpack");
+                        metadata["buildpack_key"].Value<string>().should_be("run-buildpack");
                     };
                 };
             };
 
-            context["not a nora"] = () =>
+            context["given a buildpack with skipdetect and a valid procfile app"] = () =>
             {
-                string configFile = null;
+                string resultFile = null;
+
                 before = () =>
                 {
-                    configFile = Path.Combine(appDir, "Web.config");
-                    File.WriteAllText(configFile, "<configuration></configuration>");
+                    resultFile = Path.Combine(tmpDir, "result.json");
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                        Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
+                        Path.Combine(buildpacksDir, Utils.MD5Hash("run-buildpack"))
+                    );
+
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run-procfile"), appDir);
+                    arguments["-buildpackOrder"] = "run-buildpack";
+                    arguments["-skipDetect"] = "true";
                 };
 
-                //context["when there is a web.config and a user-provided-service"] = () =>
-                //{
-                //    before = () =>
-                //    {
-                //        process.StartInfo.EnvironmentVariables["VCAP_SERVICES"] =
-                //        JsonConvert.SerializeObject(new Services
-                //        {
-                //            UserProvided = new List<Service>
-                //                    {
-                //                        new Service
-                //                        {
-                //                            Name = "aFoo",
-                //                            Credentials = new Dictionary<string, string>
-                //                            {
-                //                                {"name", "foo"},
-                //                                {"connectionString", "bar"},
-                //                                {"providerName","baz"}
-                //                            },
-                //                        }
-                //                    }
-                //        });
-                //    };
-
-                //    it["sets a connection string"] = () =>
-                //    {
-                //        var xml = File.ReadAllText(configFile);
-                //        xml.should_contain("name=\"foo\"");
-                //        xml.should_contain("connectionString=\"bar\"");
-                //        xml.should_contain("providerName=\"baz\"");
-                //    };
-                //};
-
-                context["when there is a web.config and no user-provided-services"] = () =>
+                it["Exit code is 0"] = () =>
                 {
-                    it["doesn't alter the web.config"] = () =>
+                    process.ExitCode.should_be(0);
+                };
+
+                it["Creates the result.json"] = () =>
+                {
+                    File.Exists(resultFile).should_be_true();
+                };
+
+                context["the result.json file"] = () =>
+                {
+                    JObject result = null;
+
+                    act = () =>
                     {
-                        var doc = new XmlDocument();
-                        doc.Load(configFile);
-                        var rootNode = doc.SelectSingleNode("//configuration");
-                        rootNode.ChildNodes.Count.should_be(0);
+                        result = JObject.Parse(File.ReadAllText(resultFile));
+                    };
+
+                    it["includes the start command form Procfile"] = () =>
+                    {
+                        var processTypes = result["process_types"].Value<JObject>();
+                        var webStartCommand = processTypes["web"].Value<string>();
+                        webStartCommand.should_be(@"custom.bat");
+                    };
+
+                    it["doesn't have any other process types"] = () =>
+                    {
+                        var processTypes = result["process_types"].Value<JObject>();
+                        processTypes.Count.should_be(1);
                     };
                 };
             };

@@ -34,6 +34,6 @@ namespace Builder
     public class ReleaseInfo
     {
         [YamlMember(Alias = "default_process_types")]
-        public Dictionary<string, string> defaultProcessType { get; set; }
+        public Dictionary<string, string> defaultProcessTypes { get; set; }
     }
 }
