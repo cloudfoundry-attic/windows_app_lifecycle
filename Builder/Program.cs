@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using LibGit2Sharp;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -130,7 +131,8 @@ namespace Builder
 
                 tempFile = Path.GetTempFileName();
 
-                using (var webClient = new WebClient()) {    
+                using (var webClient = new WebClient())
+                {
                     webClient.DownloadFile(source, tempFile);
                 }
 
@@ -168,8 +170,20 @@ namespace Builder
                     {
                         DownloadAndExtractZip(downloadUri, buildpackDir, skipTlsCertValidation);
                     }
+                    else
+                    {
+                        var cloneOptions = new CloneOptions();
+                        if (!string.IsNullOrEmpty(downloadUri.Fragment))
+                        {
+                            cloneOptions.BranchName = downloadUri.Fragment.Substring(1);
+                        }
+
+                        var cloneUri = new UriBuilder(downloadUri);
+                        cloneUri.Fragment = "";
+                        Repository.Clone(cloneUri.ToString(), buildpackDir, cloneOptions);
+                    }
                 }
-            }   
+            }
         }
 
         static void Main(string[] args)
@@ -196,7 +210,7 @@ namespace Builder
 
             var buildCacheDir = rootDir + options.BuildArtifactsCacheDir;
             Directory.CreateDirectory(buildCacheDir);
-            
+
             var outputCache = rootDir + options.OutputBuildArtifactsCache;
             var outputDropletPath = rootDir + options.OutputDroplet;
 

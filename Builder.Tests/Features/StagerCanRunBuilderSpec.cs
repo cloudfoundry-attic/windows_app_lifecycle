@@ -85,7 +85,7 @@ namespace Builder.Tests.Specs.Features
 
             after = () =>
             {
-                Directory.Delete(workingDirectory, true);
+                DeleteFileSystemInfo(new DirectoryInfo(workingDirectory));
                 try
                 {
                     if (tmpZip != null) {
@@ -342,6 +342,74 @@ namespace Builder.Tests.Specs.Features
                     };
                 };
             };
+
+            context["given a git url buildpack and a valid app"] = () =>
+            {
+                string resultFile = null;
+
+                before = () =>
+                {
+                    resultFile = Path.Combine(tmpDir, "result.json");
+
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
+                    arguments["-buildpackOrder"] = "https://github.com/stefanschneider/dummy-buildpack#test";
+                };
+
+                it["Exit code is 0"] = () =>
+                {
+                    process.ExitCode.should_be(0);
+                };
+
+                it["Creates the result.json"] = () =>
+                {
+                    File.Exists(resultFile).should_be_true();
+                };
+
+                context["the result.json file"] = () =>
+                {
+                    JObject result = null;
+
+                    act = () =>
+                    {
+                        result = JObject.Parse(File.ReadAllText(resultFile));
+                    };
+
+                    it["includes the start command form Procfile"] = () =>
+                    {
+                        var processTypes = result["process_types"].Value<JObject>();
+                        var webStartCommand = processTypes["web"].Value<string>();
+                        webStartCommand.should_be(@"dummy");
+                    };
+
+                    it["doesn't have any other process types"] = () =>
+                    {
+                        var processTypes = result["process_types"].Value<JObject>();
+                        processTypes.Count.should_be(1);
+                    };
+
+                    it["includes lifecycle metadata fields"] = () =>
+                    {
+                        result["lifecycle_type"].Value<string>().should_be("buildpack");
+                        var metadata = result["lifecycle_metadata"].Value<JObject>();
+                        metadata["detected_buildpack"].Value<string>().should_be("Dummy");
+                    };
+                };
+            };
+        }
+
+        private static void DeleteFileSystemInfo(FileSystemInfo fileSystemInfo)
+        {
+            var di = fileSystemInfo as DirectoryInfo;
+            if (di != null)
+            {
+                foreach (var ci in di.GetFileSystemInfos())
+                {
+                    DeleteFileSystemInfo(ci);
+                }
+            }
+
+            fileSystemInfo.Attributes = FileAttributes.Normal;
+            fileSystemInfo.Delete();
         }
 
         private int GetFreeTcpPort()
