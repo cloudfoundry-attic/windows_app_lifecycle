@@ -1,10 +1,17 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NSpec;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
 using System.Xml;
 
 namespace Builder.Tests.Specs.Features
@@ -19,6 +26,7 @@ namespace Builder.Tests.Specs.Features
             string stdout = null;
             string stderr = null;
 
+            string tmpZip = null;
             string currentDirectory = null;
             string workingDirectory = null;
             string appDir = null;
@@ -78,6 +86,13 @@ namespace Builder.Tests.Specs.Features
             after = () =>
             {
                 Directory.Delete(workingDirectory, true);
+                try
+                {
+                    if (tmpZip != null) {
+                        File.Delete(tmpZip);
+                    }
+                }
+                catch{}
             };
 
             context["given no buildpacks"] = () =>
@@ -110,7 +125,7 @@ namespace Builder.Tests.Specs.Features
                     resultFile = Path.Combine(tmpDir, "result.json");
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
-                        Path.Combine(buildpacksDir, Utils.MD5Hash("run-buildpack"))
+                        Path.Combine(buildpacksDir, MD5Hash("run-buildpack"))
                     );
 
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "no-app"), appDir);
@@ -137,12 +152,12 @@ namespace Builder.Tests.Specs.Features
                     resultFile = Path.Combine(tmpDir, "result.json");
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
-                        Path.Combine(buildpacksDir, Utils.MD5Hash("run-buildpack"))
+                        Path.Combine(buildpacksDir, MD5Hash("run-buildpack"))
                     );
 
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "nop-buildpack"),
-                        Path.Combine(buildpacksDir, Utils.MD5Hash("nop-buildpack"))
+                        Path.Combine(buildpacksDir, MD5Hash("nop-buildpack"))
                     );
 
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
@@ -228,7 +243,7 @@ namespace Builder.Tests.Specs.Features
                     resultFile = Path.Combine(tmpDir, "result.json");
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
-                        Path.Combine(buildpacksDir, Utils.MD5Hash("run-buildpack"))
+                        Path.Combine(buildpacksDir, MD5Hash("run-buildpack"))
                     );
 
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run-procfile"), appDir);
@@ -269,6 +284,143 @@ namespace Builder.Tests.Specs.Features
                     };
                 };
             };
+
+            context["given a zip url buildpack and a valid app"] = () =>
+            {
+                string resultFile = null;
+
+                before = () =>
+                {
+                    var port = GetFreeTcpPort();
+                    tmpZip = Path.GetTempFileName();
+                    File.Delete(tmpZip);
+                    StartZipServer("127.0.0.1", port, Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"), tmpZip);
+
+                    resultFile = Path.Combine(tmpDir, "result.json");
+                     
+                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
+                    arguments["-buildpackOrder"] = "\"http://localhost:" + port + "/buildpack.zip\"";
+                };
+
+                it["Exit code is 0"] = () =>
+                {
+                    process.ExitCode.should_be(0);
+                };
+
+                it["Creates the result.json"] = () =>
+                {
+                    File.Exists(resultFile).should_be_true();
+                };
+
+                context["the result.json file"] = () =>
+                {
+                    JObject result = null;
+
+                    act = () =>
+                    {
+                        result = JObject.Parse(File.ReadAllText(resultFile));
+                    };
+
+                    it["includes the start command form Procfile"] = () =>
+                    {
+                        var processTypes = result["process_types"].Value<JObject>();
+                        var webStartCommand = processTypes["web"].Value<string>();
+                        webStartCommand.should_be(@"run.bat");
+                    };
+
+                    it["doesn't have any other process types"] = () =>
+                    {
+                        var processTypes = result["process_types"].Value<JObject>();
+                        processTypes.Count.should_be(1);
+                    };
+
+                    it["includes lifecycle metadata fields"] = () =>
+                    {
+                        result["lifecycle_type"].Value<string>().should_be("buildpack");
+                        var metadata = result["lifecycle_metadata"].Value<JObject>();
+                        metadata["detected_buildpack"].Value<string>().should_be("Run Buildpack");
+                    };
+                };
+            };
         }
+
+        private int GetFreeTcpPort()
+        {
+            var tcpl = new TcpListener(IPAddress.Any, 0);
+            tcpl.Start();
+
+            var freePort = (tcpl.LocalEndpoint as IPEndPoint).Port;
+            tcpl.Stop();
+
+            return freePort;
+        }
+
+        private static string MD5Hash(string input)
+        {
+            using (MD5 md5Hash = MD5.Create())
+            {
+                byte[] data = md5Hash.ComputeHash(Encoding.UTF8.GetBytes(input));
+                return BitConverter.ToString(data).Replace("-", "");
+            }
+        }
+
+        private static HttpListener StartZipServer(string host, int port, string contentDir, string tmpZip)
+        {
+            var listener = new HttpListener();
+            listener.Prefixes.Add(String.Format("http://{0}:{1}/", host, port));
+            listener.Start();
+
+            ZipFile.CreateFromDirectory(contentDir, tmpZip, CompressionLevel.Fastest, false);
+
+            var listenThread = new Thread(new ThreadStart(() =>
+            {
+                try
+                {
+                    for (; ; )
+                    {
+                        var httpContext = listener.GetContext();
+                        WriteFile(httpContext, tmpZip);
+                    }
+                }
+                catch (Exception e)
+                {
+                    // ignore the exception and exit
+                }
+            }));
+            listenThread.Start();
+            return listener;
+        }
+
+        private static void WriteFile(HttpListenerContext ctx, string path)
+        {
+            // Source http://stackoverflow.com/questions/13385633/serving-large-files-with-c-sharp-httplistener
+            var response = ctx.Response;
+            using (FileStream fs = File.OpenRead(path))
+            {
+                string filename = Path.GetFileName(path);
+
+                response.ContentLength64 = fs.Length;
+                response.SendChunked = false;
+                response.ContentType = System.Net.Mime.MediaTypeNames.Application.Zip;
+                response.AddHeader("Content-disposition", "attachment; filename=" + filename);
+
+                byte[] buffer = new byte[64 * 1024];
+                int read;
+                using (BinaryWriter bw = new BinaryWriter(response.OutputStream))
+                {
+                    while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        bw.Write(buffer, 0, read);
+                    }
+
+                    bw.Close();
+                }
+
+                response.StatusCode = (int)HttpStatusCode.OK;
+                response.StatusDescription = "OK";
+                response.OutputStream.Close();
+            }
+        }
+
     }
 }

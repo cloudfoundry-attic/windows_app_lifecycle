@@ -30,7 +30,7 @@ namespace Builder
         public string SkipCertVerify { get; set; }
 
         [Option('k', "skipDetect", Required = false, HelpText = "")]
-        public string skipDetect { get; set; }
+        public string SkipDetect { get; set; }
 
         [HelpOption]
         public string GetUsage()

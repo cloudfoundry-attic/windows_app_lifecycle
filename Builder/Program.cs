@@ -2,8 +2,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Net;
+using System.Net.Security;
 using System.Security.Cryptography;
 using System.Text;
 using YamlDotNet.Serialization;
@@ -112,6 +116,62 @@ namespace Builder
             }
         }
 
+        private static void DownloadAndExtractZip(Uri source, string destination, bool skipTlsCertValidation)
+        {
+            var tlsIgnoreFailureCallback = new RemoteCertificateValidationCallback(delegate { return true; });
+            string tempFile = null;
+
+            try
+            {
+                if (skipTlsCertValidation)
+                {
+                    ServicePointManager.ServerCertificateValidationCallback += tlsIgnoreFailureCallback;
+                }
+
+                tempFile = Path.GetTempFileName();
+
+                using (var webClient = new WebClient()) {    
+                    webClient.DownloadFile(source, tempFile);
+                }
+
+                ZipFile.ExtractToDirectory(tempFile, destination);
+            }
+            finally
+            {
+                if (skipTlsCertValidation)
+                {
+                    ServicePointManager.ServerCertificateValidationCallback -= tlsIgnoreFailureCallback;
+                }
+
+                if (tempFile != null)
+                {
+                    File.Delete(tempFile);
+                }
+            }
+        }
+
+        private static bool IsZipBuildpack(string filename)
+        {
+            return filename.EndsWith(".zip", false, CultureInfo.InvariantCulture);
+        }
+
+        private static void DownloadBuildpacks(string[] buildpacks, string buildpacksDir, bool skipTlsCertValidation)
+        {
+            foreach (var buildpackName in buildpacks)
+            {
+                Uri downloadUri = null;
+                var downloadableBuildoack = Uri.TryCreate(buildpackName, UriKind.Absolute, out downloadUri);
+                if (downloadableBuildoack)
+                {
+                    var buildpackDir = Path.Combine(buildpacksDir, GetBuildpackDirName(buildpackName));
+                    if (IsZipBuildpack(buildpackName))
+                    {
+                        DownloadAndExtractZip(downloadUri, buildpackDir, skipTlsCertValidation);
+                    }
+                }
+            }   
+        }
+
         static void Main(string[] args)
         {
             SanitizeArgs(args);
@@ -126,6 +186,9 @@ namespace Builder
 
         private static void Run(Options options)
         {
+            bool skipCertVerify = StringComparer.InvariantCultureIgnoreCase.Compare(options.SkipCertVerify, "true") == 0;
+            bool skipBuildpackDetect = StringComparer.InvariantCultureIgnoreCase.Compare(options.SkipDetect, "true") == 0;
+
             var rootDir = Directory.GetCurrentDirectory();
 
             var appPath = rootDir + options.BuildDir;
@@ -133,7 +196,7 @@ namespace Builder
 
             var buildCacheDir = rootDir + options.BuildArtifactsCacheDir;
             Directory.CreateDirectory(buildCacheDir);
-
+            
             var outputCache = rootDir + options.OutputBuildArtifactsCache;
             var outputDropletPath = rootDir + options.OutputDroplet;
 
@@ -148,6 +211,8 @@ namespace Builder
                 buildpacks = options.BuildpackOrder.Split(new char[] { ',' });
             }
 
+            DownloadBuildpacks(buildpacks, buildpacksDir, skipCertVerify);
+
             foreach (var buildpackName in buildpacks)
             {
                 var buildpackDir = Path.Combine(buildpacksDir, GetBuildpackDirName(buildpackName));
@@ -157,7 +222,7 @@ namespace Builder
                     continue;
                 }
 
-                if (StringComparer.InvariantCultureIgnoreCase.Compare(options.skipDetect, "true") != 0)
+                if (!skipBuildpackDetect)
                 {
                     var detectPath = GetExecutable(Path.Combine(buildpackDir, "bin"), "detect");
 
