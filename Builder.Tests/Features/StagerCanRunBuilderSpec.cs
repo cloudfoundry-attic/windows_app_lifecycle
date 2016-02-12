@@ -78,9 +78,7 @@ namespace Builder.Tests.Specs.Features
                     {"-outputDroplet", "/tmp/droplet"},
                     {"-outputMetadata", "/tmp/result.json"},
                     {"-outputBuildArtifactsCache", "/tmp/output-cache"},
-                    {"-skipDetect", "false"},
-                    {"-skipCertVerify", "false"}
-                };
+                    {"-skipDetect", "false"}                };
             };
 
             after = () =>

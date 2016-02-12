@@ -3,34 +3,37 @@ using CommandLine.Text;
 
 namespace Builder
 {
+    public enum OptionBool
+    {
+        False,
+        True
+    }
+
     public class Options
     {
-        [Option('a', "buildDir", Required = true, HelpText = "")]
+        [Option("buildDir", Required = true)]
         public string BuildDir { get; set; }
 
-        [Option('b', "buildArtifactsCacheDir", Required = false, HelpText = "")]
+        [Option("buildArtifactsCacheDir", Required = false)]
         public string BuildArtifactsCacheDir { get; set; }
 
-        [Option('o', "buildpackOrder", Required = false, HelpText = "")]
+        [Option("buildpackOrder", Required = false)]
         public string BuildpackOrder { get; set; }
 
-        [Option('e', "buildpacksDir", Required = false, HelpText = "")]
+        [Option("buildpacksDir", Required = false)]
         public string BuildpacksDir { get; set; }
 
-        [Option('c', "outputBuildArtifactsCache", Required = false, HelpText = "")]
+        [Option("outputBuildArtifactsCache", Required = false)]
         public string OutputBuildArtifactsCache { get; set; }
 
-        [Option('d', "outputDroplet", Required = true, HelpText = "")]
+        [Option("outputDroplet", Required = true)]
         public string OutputDroplet { get; set; }
 
-        [Option('m', "outputMetadata", Required = true, HelpText = "")]
+        [Option("outputMetadata", Required = true)]
         public string OutputMetadata { get; set; }
 
-        [Option('s', "skipCertVerify", Required = false, HelpText = "")]
-        public string SkipCertVerify { get; set; }
-
-        [Option('k', "skipDetect", Required = false, HelpText = "")]
-        public string SkipDetect { get; set; }
+        [Option("skipDetect", Required = false, DefaultValue = OptionBool.False)]
+        public OptionBool SkipDetect { get; set; }
 
         [HelpOption]
         public string GetUsage()

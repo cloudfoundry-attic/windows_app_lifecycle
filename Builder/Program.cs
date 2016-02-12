@@ -117,18 +117,13 @@ namespace Builder
             }
         }
 
-        private static void DownloadAndExtractZip(Uri source, string destination, bool skipTlsCertValidation)
+        private static void DownloadAndExtractZip(Uri source, string destination)
         {
             var tlsIgnoreFailureCallback = new RemoteCertificateValidationCallback(delegate { return true; });
             string tempFile = null;
 
             try
             {
-                if (skipTlsCertValidation)
-                {
-                    ServicePointManager.ServerCertificateValidationCallback += tlsIgnoreFailureCallback;
-                }
-
                 tempFile = Path.GetTempFileName();
 
                 using (var webClient = new WebClient())
@@ -140,11 +135,6 @@ namespace Builder
             }
             finally
             {
-                if (skipTlsCertValidation)
-                {
-                    ServicePointManager.ServerCertificateValidationCallback -= tlsIgnoreFailureCallback;
-                }
-
                 if (tempFile != null)
                 {
                     File.Delete(tempFile);
@@ -157,7 +147,7 @@ namespace Builder
             return filename.EndsWith(".zip", false, CultureInfo.InvariantCulture);
         }
 
-        private static void DownloadBuildpacks(string[] buildpacks, string buildpacksDir, bool skipTlsCertValidation)
+        private static void DownloadBuildpacks(string[] buildpacks, string buildpacksDir)
         {
             foreach (var buildpackName in buildpacks)
             {
@@ -168,7 +158,7 @@ namespace Builder
                     var buildpackDir = Path.Combine(buildpacksDir, GetBuildpackDirName(buildpackName));
                     if (IsZipBuildpack(buildpackName))
                     {
-                        DownloadAndExtractZip(downloadUri, buildpackDir, skipTlsCertValidation);
+                        DownloadAndExtractZip(downloadUri, buildpackDir);
                     }
                     else
                     {
@@ -200,9 +190,6 @@ namespace Builder
 
         private static void Run(Options options)
         {
-            bool skipCertVerify = StringComparer.InvariantCultureIgnoreCase.Compare(options.SkipCertVerify, "true") == 0;
-            bool skipBuildpackDetect = StringComparer.InvariantCultureIgnoreCase.Compare(options.SkipDetect, "true") == 0;
-
             var rootDir = Directory.GetCurrentDirectory();
 
             var appPath = rootDir + options.BuildDir;
@@ -225,7 +212,7 @@ namespace Builder
                 buildpacks = options.BuildpackOrder.Split(new char[] { ',' });
             }
 
-            DownloadBuildpacks(buildpacks, buildpacksDir, skipCertVerify);
+            DownloadBuildpacks(buildpacks, buildpacksDir);
 
             foreach (var buildpackName in buildpacks)
             {
@@ -236,7 +223,7 @@ namespace Builder
                     continue;
                 }
 
-                if (!skipBuildpackDetect)
+                if (options.SkipDetect == OptionBool.False)
                 {
                     var detectPath = GetExecutable(Path.Combine(buildpackDir, "bin"), "detect");
 
