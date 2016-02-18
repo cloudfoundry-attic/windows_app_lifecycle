@@ -35,6 +35,10 @@ namespace Builder
         [Option("skipDetect", Required = false, DefaultValue = OptionBool.False)]
         public OptionBool SkipDetect { get; set; }
 
+        [Option("skipCertVerify", Required = false)]
+        public OptionBool SkipCertVerify { get; set; }
+
+
         [HelpOption]
         public string GetUsage()
         {
