@@ -1,20 +1,22 @@
 ﻿using System;
-using System.Net.Http;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Healthcheck
 {
-    internal class Program
+    class Program
     {
-        private static void Main(string[] args)
+        static void Main(string[] args)
         {
-            var client = new HttpClient();
             var port = Environment.GetEnvironmentVariable("PORT");
             if (port == null)
                 throw new Exception("PORT is not defined");
 
+            // The health check succeeds if the process is listening on any non-local interface
             foreach (NetworkInterface netInterface in NetworkInterface.GetAllNetworkInterfaces())
             {
                 IPInterfaceProperties ipProps = netInterface.GetIPProperties();
@@ -22,38 +24,22 @@ namespace Healthcheck
                 {
                     if (addr.Address.AddressFamily != AddressFamily.InterNetwork) continue;
                     if (addr.Address.ToString().StartsWith("127.")) continue;
+
                     try
                     {
-                        var task =
-                            client.GetAsync(String.Format("http://{0}:{1}", addr.Address.ToString(), port));
-                        if (task.Wait(1000))
-                        {
-                            if (task.Result.IsSuccessStatusCode)
-                            {
-                                Console.WriteLine("healthcheck passed");
-                                Environment.Exit(0);
-                            }
-                            else
-                            {
-                                Console.Error.WriteLine("Got error response: " +
-                                                  task.Result.Content.ReadAsStringAsync().Result);
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("waiting for process to start up");
-                        }
+                        var tcpCLient = new TcpClient(addr.Address.ToString(), Int32.Parse(port));
+
+                        System.Console.WriteLine("healthcheck passed");
+                        System.Environment.Exit(0);
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
-                        Console.WriteLine(e.ToString());
                     }
                 }
             }
 
-            Console.WriteLine("healthcheck failed");
-
-            Environment.Exit(1);
+            System.Console.WriteLine("healthcheck failed");
+            System.Environment.Exit(1);
         }
     }
 }

@@ -3,12 +3,6 @@ SET PATH=%PATH%;%WINDIR%\Microsoft.NET\Framework64\v4.0.30319;%WINDIR%\SysNative
 where msbuild
 if errorLevel 1 ( echo "msbuild was not found on PATH" && exit /b 1 )
 
-:: enable some features
-rem dism /online /Enable-Feature /FeatureName:IIS-WebServer /All /NoRestart
-rem dism /online /Enable-Feature /FeatureName:IIS-WebSockets /All /NoRestart
-rem dism /online /Enable-Feature /FeatureName:Application-Server-WebServer-Support /FeatureName:AS-NET-Framework /All /NoRestart
-rem dism /online /Enable-Feature /FeatureName:IIS-HostableWebCore /All /NoRestart
-
 rmdir /S /Q output
 rmdir /S /Q packages
 bin\nuget restore || exit /b 1
@@ -25,9 +19,9 @@ popd
 go build -o diego-sshd.exe github.com/cloudfoundry-incubator/diego-ssh/cmd/sshd || exit /b 1
 
 MSBuild WindowsAppLifecycle.sln /t:Rebuild /p:Configuration=Release || exit /b 1
-:: packages\nspec.0.9.68\tools\NSpecRunner.exe Healthcheck.Tests\bin\Release\Healthcheck.Tests.dll || exit /b 1
+packages\nspec.0.9.68\tools\NSpecRunner.exe Healthcheck.Tests\bin\Release\Healthcheck.Tests.dll || exit /b 1
 :: packages\nspec.0.9.68\tools\NSpecRunner.exe Builder.Tests\bin\Release\BuilderTests.dll || exit /b 1
-:: packages\nspec.0.9.68\tools\NSpecRunner.exe Launcher.Tests\bin\Release\LauncherTests.dll || exit /b 1
+packages\nspec.0.9.68\tools\NSpecRunner.exe Launcher.Tests\bin\Release\LauncherTests.dll || exit /b 1
 
 bin\bsdtar -czvf windows_app_lifecycle.tgz --exclude log -C Builder\bin . -C ..\..\Launcher\bin . -C ..\..\Healthcheck\bin . -C ..\.. ./diego-sshd.exe || exit /b 1
 for /f "tokens=*" %%a in ('git rev-parse --short HEAD') do (
