@@ -286,18 +286,24 @@ namespace Builder.Tests.Specs.Features
             context["given a zip url buildpack and a valid app"] = () =>
             {
                 string resultFile = null;
+                HttpListener zipServer = null;
 
                 before = () =>
                 {
                     var port = GetFreeTcpPort();
                     tmpZip = Path.GetTempFileName();
                     File.Delete(tmpZip);
-                    StartZipServer("127.0.0.1", port, Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"), tmpZip);
+                    zipServer = StartZipServer("127.0.0.1", port, Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"), tmpZip);
 
                     resultFile = Path.Combine(tmpDir, "result.json");
                      
                     Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
                     arguments["-buildpackOrder"] = "\"http://localhost:" + port + "/buildpack.zip\"";
+                };
+
+                after = () =>
+                {
+                    zipServer.Stop();
                 };
 
                 it["Exit code is 0"] = () =>
