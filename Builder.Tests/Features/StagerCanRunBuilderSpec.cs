@@ -121,12 +121,12 @@ namespace Builder.Tests.Specs.Features
                 before = () =>
                 {
                     resultFile = Path.Combine(tmpDir, "result.json");
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                    CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
                         Path.Combine(buildpacksDir, MD5Hash("run-buildpack"))
                     );
 
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "no-app"), appDir);
+                    CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "no-app"), appDir);
                     arguments["-buildpackOrder"] = "run-buildpack";
                 };
 
@@ -148,17 +148,17 @@ namespace Builder.Tests.Specs.Features
                 before = () =>
                 {
                     resultFile = Path.Combine(tmpDir, "result.json");
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                    CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
                         Path.Combine(buildpacksDir, MD5Hash("run-buildpack"))
                     );
 
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                    CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "nop-buildpack"),
                         Path.Combine(buildpacksDir, MD5Hash("nop-buildpack"))
                     );
 
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
+                    CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
                     arguments["-buildpackOrder"] = "run-buildpack";
                 };
 
@@ -239,12 +239,12 @@ namespace Builder.Tests.Specs.Features
                 before = () =>
                 {
                     resultFile = Path.Combine(tmpDir, "result.json");
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(
+                    CopyDirectory(
                         Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "buildpacks", "run-buildpack"),
                         Path.Combine(buildpacksDir, MD5Hash("run-buildpack"))
                     );
 
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run-procfile"), appDir);
+                    CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run-procfile"), appDir);
                     arguments["-buildpackOrder"] = "run-buildpack";
                     arguments["-skipDetect"] = "true";
                 };
@@ -297,7 +297,7 @@ namespace Builder.Tests.Specs.Features
 
                     resultFile = Path.Combine(tmpDir, "result.json");
                      
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
+                    CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
                     arguments["-buildpackOrder"] = "\"http://localhost:" + port + "/buildpack.zip\"";
                 };
 
@@ -355,7 +355,7 @@ namespace Builder.Tests.Specs.Features
                 {
                     resultFile = Path.Combine(tmpDir, "result.json");
 
-                    Microsoft.VisualBasic.FileIO.FileSystem.CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
+                    CopyDirectory(Path.Combine(currentDirectory, "Builder.Tests", "Fixtures", "apps", "run"), appDir);
                     arguments["-buildpackOrder"] = "https://github.com/stefanschneider/dummy-buildpack#test";
                 };
 
@@ -454,7 +454,7 @@ namespace Builder.Tests.Specs.Features
                         WriteFile(httpContext, tmpZip);
                     }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     // ignore the exception and exit
                 }
@@ -494,5 +494,17 @@ namespace Builder.Tests.Specs.Features
             }
         }
 
+        static public void CopyDirectory(string sourcePath, string destiationPath)
+        {
+            foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
+            {
+                Directory.CreateDirectory(dirPath.Replace(sourcePath, destiationPath));
+            }
+
+            foreach (string newPath in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
+            {
+                File.Copy(newPath, newPath.Replace(sourcePath, destiationPath), true);
+            }
+        }
     }
 }
