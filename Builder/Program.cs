@@ -117,6 +117,20 @@ namespace Builder
             }
         }
 
+        private static void SanitizeProxyEnvVars()
+		{
+			// Sanitize empty proxy related environment variables. This will avoid issues
+			// with the libgit2 library when the proxy related environment variables exist but are empty.
+			foreach (string env in (new string[] { "HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "NO_PROXY", "no_proxy" }))
+			{
+				string envValue = Environment.GetEnvironmentVariable(env);
+				if (envValue == null || string.IsNullOrWhiteSpace(envValue))
+				{
+					Environment.SetEnvironmentVariable(env, null);
+				}
+			}
+		}
+
         private static void DownloadAndExtractZip(Uri source, string destination)
         {
             var tlsIgnoreFailureCallback = new RemoteCertificateValidationCallback(delegate { return true; });
@@ -162,6 +176,8 @@ namespace Builder
                     }
                     else
                     {
+                        SanitizeProxyEnvVars();
+
                         var cloneOptions = new CloneOptions();
                         if (!string.IsNullOrEmpty(downloadUri.Fragment))
                         {
