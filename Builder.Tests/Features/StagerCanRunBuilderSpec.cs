@@ -195,14 +195,6 @@ namespace Builder.Tests.Specs.Features
                                     }
                         });
                     };
-
-                    it["sets a connection string"] = () =>
-                    {
-                        var xml = File.ReadAllText(configFile);
-                        xml.should_contain("name=\"foo\"");
-                        xml.should_contain("connectionString=\"bar\"");
-                        xml.should_contain("providerName=\"baz\"");
-                    };
                 };
 
                 context["when there is a web.config and no user-provided-services"] = () =>
