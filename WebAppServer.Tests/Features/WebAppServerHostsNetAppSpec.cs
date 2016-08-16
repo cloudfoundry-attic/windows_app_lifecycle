@@ -59,6 +59,14 @@ namespace WebAppServer.Tests
                         response.Content.ReadAsStringAsync().Result.should_be("\"hello i am nora\"");
                     };
 
+                    it["supports url rewrite"] = () =>
+                    {
+                        var client = new HttpClient();
+                        var response = client.GetAsync("http://localhost:" + port +"/rewrite-test").GetAwaiter().GetResult();
+                        response.StatusCode.should_be(HttpStatusCode.OK);
+                        response.Content.ReadAsStringAsync().Result.should_be("\"hello i am nora\"");
+                    };
+
                     it["does not add unexpected custom headers"] = () =>
                     {
                         var client = new HttpClient();
