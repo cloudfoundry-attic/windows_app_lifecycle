@@ -9,6 +9,8 @@ namespace Healthcheck
 {
     internal class Program
     {
+        private const int Timeout = 10000;
+
         private static void Main(string[] args)
         {
             var client = new HttpClient();
@@ -29,7 +31,7 @@ namespace Healthcheck
             {
                 var task =
                     client.GetAsync(String.Format("http://{0}:{1}", Environment.GetEnvironmentVariable("CF_INSTANCE_IP"), externalPort));
-                if (task.Wait(1000))
+                if (task.Wait(Timeout))
                 {
                     if (task.Result.IsSuccessStatusCode)
                     {
