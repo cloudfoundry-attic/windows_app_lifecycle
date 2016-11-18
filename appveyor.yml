@@ -10,11 +10,11 @@ artifacts:
   name: lifecycle
 deploy:
 - provider: S3
-  access_key_id: AKIAJ3M5ORCAISPRT22Q
+  access_key_id: AKIAI2AAY3LUVTHYDTDA
   secret_access_key:
-    secure: lMbaCusTBxZpIbSzoILyHMBkz+sVH7EwgAqI3sAVYAM92OcIzlzq1IzcB8MmnRvZ
+    secure: zNBMp5HGSOJLlSY+lBKwgWH5eE71tYCWST8QQjXO+IwIE2pDeI/uv5Nm0iBwob4K
   region: us-east-1
-  bucket: windows-app-lifecycle
+  bucket: build-windows-app-lifecycle
   artifact: lifecycle
   set_public: true
   on:
