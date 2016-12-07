@@ -107,23 +107,6 @@ namespace Launcher.Tests.Features
                     beans[1].should_contain("bean2");
                 };
             };
-
-
-            describe["when arguments are passed in as ENV[ARGJSON]"] = () =>
-            {
-                before = () => Environment.SetEnvironmentVariable("ARGJSON", @"[""Fixtures"", ""CivetCat.bat \""boop beep\""""]");
-                after = () => Environment.SetEnvironmentVariable("ARGJSON", null);
-
-                it["runs it the same if it was passed as an argument"] = () =>
-                {
-                    var launcher = StartLauncher("doesnt", "matter");
-                    var beans = File.ReadAllText(@"Fixtures\Bean.txt");
-                    beans.should_contain("boop beep");
-                    launcher.ExitCode.should_be(0);
-                };
-
-            };
         }
     }
 }
-

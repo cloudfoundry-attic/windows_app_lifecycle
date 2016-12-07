@@ -1,67 +1,39 @@
 using System;
 using Newtonsoft.Json;
+using YamlDotNet.Serialization;
+using System.Collections.Generic;
 
 namespace Builder
 {
+    // Structure validation here:
+    // https://github.com/cloudfoundry/cloud_controller_ng/blob/f418b7cc273a410b39938fc9a46d9d94f591d887/lib/cloud_controller/diego/buildpack/staging_completion_handler.rb#L11-L25
     public class OutputMetadata
     {
         [JsonProperty("lifecycle_type")]
-        public string LifecycleType
-        {
-            get { return "buildpack"; }
-        }
+        public string LifecycleType { get; set; }
+
         [JsonProperty("lifecycle_metadata")]
-        public LifecycleMetadata LifecycleMetadata
-        {
-            get { return new LifecycleMetadata(); }
-        }
+        public LifecycleMetadata LifecycleMetadata { get; set; }
+
         [JsonProperty("process_types")]
-        public ProcessTypes ProcessTypes {
-            get
-            {
-                return new ProcessTypes()
-                {
-                    Web = (ExecutionMetadata.StartCommand + " " + String.Join(" ", ExecutionMetadata.StartCommandArgs)).Trim(),
-                };
-            }
-        }
+        public Dictionary<string, string> ProcessTypes { get; set; }
 
         [JsonProperty("execution_metadata")]
-        public string ExecutionMetadataJson
-        {
-            get { return JsonConvert.SerializeObject(ExecutionMetadata); }
-        }
-
-        [JsonIgnore]
-        public ExecutionMetadata ExecutionMetadata;
-    }
-
-    public class ExecutionMetadata
-    {
-        [JsonProperty("start_command")]
-        public string StartCommand { get; set; }
-        [JsonProperty("start_command_args")]
-        public string[] StartCommandArgs { get; set; }
+        public string ExecutionMetadata { get; set; }
     }
 
     public class LifecycleMetadata
     {
         [JsonProperty("buildpack_key")]
-        public string BuildpackKey
-        {
-            get { return ""; }
-        }
+        public string BuildpackKey { get; set; }
 
         [JsonProperty("detected_buildpack")]
-        public string DetectedBuildpack
-        {
-            get { return "windows"; }
-        }
+        public string DetectedBuildpack { get; set; }
     }
 
-    public class ProcessTypes
+    public class ReleaseInfo
     {
-        [JsonProperty("web")]
-        public string Web { get; set; }
+        [YamlMember(Alias = "default_process_types")]
+        public Dictionary<string, string> defaultProcessTypes { get; set; }
     }
 }
