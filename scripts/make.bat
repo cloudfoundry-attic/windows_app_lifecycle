@@ -28,7 +28,7 @@ packages\nspec.0.9.68\tools\NSpecRunner.exe Healthcheck.Tests\bin\Release\Health
 packages\nspec.0.9.68\tools\NSpecRunner.exe Builder.Tests\bin\Release\BuilderTests.dll || exit /b 1
 packages\nspec.0.9.68\tools\NSpecRunner.exe Launcher.Tests\bin\Release\LauncherTests.dll || exit /b 1
 
-bin\bsdtar -czvf windows_app_lifecycle.tgz --exclude log -C Builder\bin . -C ..\..\Launcher\bin . -C ..\..\Healthcheck\bin . -C ..\.. ./diego-sshd.exe || exit /b 1
+bin\bsdtar -czvf windows_app_lifecycle.tgz --exclude log -C Builder\bin . -C ..\..\Launcher\bin . -C ..\..\Healthcheck\bin . -C ..\..\WebAppServer\bin . -C ..\.. ./diego-sshd.exe || exit /b 1
 for /f "tokens=*" %%a in ('git rev-parse --short HEAD') do (
     set VAR=%%a
     )
