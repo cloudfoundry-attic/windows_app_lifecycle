@@ -23,8 +23,12 @@ namespace Builder
 
         public static void CreateFromDirectory(string fullSourcePath, string destinationArchiveFileName)
         {
-            var parentPath = Directory.GetParent(fullSourcePath).FullName;
-            var baseName = fullSourcePath.Substring(parentPath.Length + 1); // to chop off trailing slash from parentPath
+            var parentPath = Path.GetDirectoryName(fullSourcePath);
+            var baseName = Path.GetFileName(fullSourcePath);
+            if (string.IsNullOrEmpty(baseName))
+            {
+                baseName = ".";
+            }
 
             var process = new Process();
             var processStartInfo = process.StartInfo;
