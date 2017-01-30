@@ -359,44 +359,14 @@ namespace Builder.Tests.Specs.Features
                     arguments["-buildpackOrder"] = "https://github.com/stefanschneider/dummy-buildpack#test";
                 };
 
-                it["Exit code is 0"] = () =>
+                it["Does not create the result.json"] = () =>
                 {
-                    process.ExitCode.should_be(0);
+                    File.Exists(resultFile).should_be_false();
                 };
 
-                it["Creates the result.json"] = () =>
+                it["Exit code is 222"] = () =>
                 {
-                    File.Exists(resultFile).should_be_true();
-                };
-
-                context["the result.json file"] = () =>
-                {
-                    JObject result = null;
-
-                    act = () =>
-                    {
-                        result = JObject.Parse(File.ReadAllText(resultFile));
-                    };
-
-                    it["includes the start command form Procfile"] = () =>
-                    {
-                        var processTypes = result["process_types"].Value<JObject>();
-                        var webStartCommand = processTypes["web"].Value<string>();
-                        webStartCommand.should_be(@"dummy");
-                    };
-
-                    it["doesn't have any other process types"] = () =>
-                    {
-                        var processTypes = result["process_types"].Value<JObject>();
-                        processTypes.Count.should_be(1);
-                    };
-
-                    it["includes lifecycle metadata fields"] = () =>
-                    {
-                        result["lifecycle_type"].Value<string>().should_be("buildpack");
-                        var metadata = result["lifecycle_metadata"].Value<JObject>();
-                        metadata["detected_buildpack"].Value<string>().should_be("Dummy");
-                    };
+                    process.ExitCode.should_be(222);
                 };
             };
         }
