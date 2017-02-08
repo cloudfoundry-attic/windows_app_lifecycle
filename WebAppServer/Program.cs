@@ -55,6 +55,8 @@ namespace WebAppServer
                 exitLatch.Set();
             };
 
+            Console.Error.WriteLine("The use of WebAppServer.exe is deprecated. Please use the hwc-buildpack instead.");
+
             var exitCode = 0;
             try
             {
