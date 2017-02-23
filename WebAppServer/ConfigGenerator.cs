@@ -110,6 +110,10 @@ namespace WebAppServer
             pool.Add(new XAttribute("autoStart", true));
             pool.Add(new XAttribute("startMode", "AlwaysRunning"));
 
+            var failure = new XElement("failure");
+            failure.Add(new XAttribute("rapidFailProtection", false));
+            pool.Add(failure);
+
             if (!(string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password)))
             {
                 var processModel = new XElement("processModel");
