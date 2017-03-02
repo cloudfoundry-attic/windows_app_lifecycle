@@ -167,7 +167,11 @@ namespace Builder
         {
             SanitizeArgs(args);
             var options = new Options();
-            Console.WriteLine(args.ToString());
+            Console.WriteLine("Args");
+            foreach (var item in args)
+            {
+                Console.WriteLine(item);
+            }
             if (!CommandLine.Parser.Default.ParseArguments(args, options))
             {
                 Environment.Exit(1);
