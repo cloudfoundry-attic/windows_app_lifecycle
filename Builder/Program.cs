@@ -178,15 +178,21 @@ namespace Builder
         private static void Run(Options options)
         {
             var rootDir = Directory.GetCurrentDirectory();
+            Console.WriteLine("rootDir: {0}", rootDir);
 
             var appPath = rootDir + options.BuildDir;
+            Console.WriteLine("appPath: {0}", appPath);
             var buildpacksDir = rootDir + options.BuildpacksDir;
+            Console.WriteLine("buildpacksDir: {0}", buildpacksDir);
 
             var buildCacheDir = rootDir + options.BuildArtifactsCacheDir;
+            Console.WriteLine("buildCacheDir: {0}", buildCacheDir);
             Directory.CreateDirectory(buildCacheDir);
 
             var outputCache = rootDir + options.OutputBuildArtifactsCache;
+            Console.WriteLine("outputCache: {0}", outputCache);
             var outputDropletPath = rootDir + options.OutputDroplet;
+            Console.WriteLine("outputDropletPath: {0}", outputDropletPath);
 
             string detectedBuildpack = "";
             string detectedBuildpackDir = "";
@@ -198,25 +204,34 @@ namespace Builder
             {
                 buildpacks = options.BuildpackOrder.Split(new char[] { ',' });
             }
+            Console.WriteLine("buildpacks: {0}", buildpacks);
 
             DownloadBuildpacks(buildpacks, buildpacksDir);
 
+            Console.WriteLine("looping through buildpacks");
             foreach (var buildpackName in buildpacks)
             {
                 var buildpackDir = Path.Combine(buildpacksDir, GetBuildpackDirName(buildpackName));
+                Console.WriteLine("loop: buildpackDir: {0}", buildpackDir);
+
+
 
                 if (!IsWindowsBuildpack(buildpackDir))
                 {
+                    Console.WriteLine("IsWindowsBuildpack == FALSE: {0}", buildpackDir);
                     continue;
                 }
 
                 if (options.SkipDetect == OptionBool.False)
                 {
                     var detectPath = GetExecutable(Path.Combine(buildpackDir, "bin"), "detect");
+                    Console.WriteLine("loop: detectPath: {0}", detectPath)
 
                     var outputStream = new StringWriter();
                     var exitCode = RunBuildpackProcess(detectPath, appPath, outputStream, Console.Error);
+                    Console.WriteLine("loop: RunBuildpackProcess exit code: {0}", exitCode);
                     detectOutput = outputStream.ToString();
+                    Console.WriteLine("loop: detectOutput: {0}", detectOutput);
 
                     detectOutput = detectOutput.TrimEnd(new char[] { '\n', '\r' });
 
@@ -236,6 +251,12 @@ namespace Builder
                     break;
                 }
             }
+
+            Console.WriteLine("What we found:");
+            Console.WriteLine("  detectedBuildpack: {0}", detectedBuildpack);
+            Console.WriteLine("  detectedBuildpackDir: {0}", detectedBuildpackDir);
+            Console.WriteLine("  detectOutput: {0}", detectOutput);
+            Console.WriteLine("  buildpackDetected: {0}", buildpackDetected);
 
             if (!buildpackDetected)
             {
