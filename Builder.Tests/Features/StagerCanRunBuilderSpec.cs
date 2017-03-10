@@ -18,7 +18,7 @@ namespace Builder.Tests.Specs.Features
 {
     class StagerCanRunBuilderSpec : nspec
     {
-        private void describe_()
+        private void xdescribe_()
         {
             string builderBinary = null;
             var arguments = new Dictionary<string, string>();
