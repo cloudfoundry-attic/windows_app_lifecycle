@@ -45,7 +45,7 @@ namespace Builder.Tests
             }
         }
 
-        private void describe_CreateFromDirectory()
+        private void xdescribe_CreateFromDirectory()
         {
             it["creates the tgz file"] = () =>
             {
