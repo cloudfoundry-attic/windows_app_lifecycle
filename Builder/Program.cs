@@ -204,7 +204,6 @@ namespace Builder
             {
                 buildpacks = options.BuildpackOrder.Split(new char[] { ',' });
             }
-            Console.WriteLine("buildpacks: {0}", buildpacks);
 
             DownloadBuildpacks(buildpacks, buildpacksDir);
 
@@ -225,11 +224,8 @@ namespace Builder
                 if (options.SkipDetect == OptionBool.False)
                 {
                     var detectPath = GetExecutable(Path.Combine(buildpackDir, "bin"), "detect");
-<<<<<<< Updated upstream
-                    Console.WriteLine("loop: detectPath: {0}", detectPath)
-=======
+
                     Console.WriteLine("loop: detectPath: {0}", detectPath);
->>>>>>> Stashed changes
 
                     var outputStream = new StringWriter();
                     var exitCode = RunBuildpackProcess(detectPath, appPath, outputStream, Console.Error);
