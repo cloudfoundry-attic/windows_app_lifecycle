@@ -18,7 +18,7 @@ namespace Builder.Tests.Specs.Features
 {
     class StagerCanRunBuilderSpec : nspec
     {
-        private void xdescribe_()
+        private void describe_()
         {
             string builderBinary = null;
             var arguments = new Dictionary<string, string>();
@@ -141,7 +141,7 @@ namespace Builder.Tests.Specs.Features
                 };
             };
 
-            context["given valid buildpacks and a valid app"] = () =>
+            xcontext["given valid buildpacks and a valid app"] = () =>
             {
                 string resultFile = null;
 
@@ -232,7 +232,7 @@ namespace Builder.Tests.Specs.Features
                 };
             };
 
-            context["given a buildpack with skipdetect and a valid procfile app"] = () =>
+            xcontext["given a buildpack with skipdetect and a valid procfile app"] = () =>
             {
                 string resultFile = null;
 
@@ -283,7 +283,7 @@ namespace Builder.Tests.Specs.Features
                 };
             };
 
-            context["given a zip url buildpack and a valid app"] = () =>
+            xcontext["given a zip url buildpack and a valid app"] = () =>
             {
                 string resultFile = null;
                 HttpListener zipServer = null;
