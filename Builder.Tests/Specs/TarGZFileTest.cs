@@ -20,7 +20,6 @@ namespace Builder.Tests
         void before_all()
         {
             File.WriteAllBytes(TarArchiverPath("tar.exe"), Resources.bsdtar);
-            File.WriteAllBytes(TarArchiverPath("zlib1.dll"), Resources.zlib1);
         }
 
         void before_each() {

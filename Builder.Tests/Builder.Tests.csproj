@@ -112,9 +112,6 @@
   <ItemGroup>
     <None Include="Resources\bsdtar.exe" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Resources\zlib1.dll" />
-  </ItemGroup>
   <ItemGroup />
   <ItemGroup>
     <Content Include="Fixtures\apps\run-procfile\Procfile">
