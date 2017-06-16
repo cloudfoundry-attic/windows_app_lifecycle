@@ -15,11 +15,6 @@ namespace Builder
             return Path.Combine(Path.GetDirectoryName(uri.LocalPath), filename);
         }
 
-        static TarGZFile()
-        {
-            File.WriteAllBytes(TarArchiverPath("tar.exe"), Resources.bsdtar);
-        }
-
         public static void CreateFromDirectory(string fullSourcePath, string destinationArchiveFileName)
         {
             var parentPath = Path.GetDirectoryName(fullSourcePath);
