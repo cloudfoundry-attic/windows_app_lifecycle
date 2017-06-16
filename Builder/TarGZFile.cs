@@ -11,8 +11,7 @@ namespace Builder
     {
         private static string TarArchiverPath(string filename)
         {
-            var uri = new Uri(Assembly.GetExecutingAssembly().CodeBase);
-            return Path.Combine(Path.GetDirectoryName(uri.LocalPath), filename);
+            return Path.Combine("c:\\tmp\\lifecycle", filename);
         }
 
         public static void CreateFromDirectory(string fullSourcePath, string destinationArchiveFileName)
