@@ -26,7 +26,7 @@ namespace Launcher
                 return 1;
             }
 
-            var containerRoot = Directory.GetCurrentDirectory();
+            var containerRoot = "C:\\Users\\vcap";
             var workingDirectory = Path.Combine(containerRoot, args[0]);
             var executablePathAndArgs = args[1];
 
