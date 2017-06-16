@@ -14,7 +14,8 @@ rmdir /S /Q packages
 bin\nuget restore || exit /b 1
 
 MSBuild WindowsAppLifecycle.sln /t:Rebuild /p:Configuration=Release || exit /b 1
-xcopy bin\bsdtar.exe Builder\bin\tar.exe
+xcopy bin\bsdtar.exe Builder\bin
+move /Y Builder\bin\bsdtar.exe Builder\bin\tar.exe
 bin\bsdtar -czvf windows_app_lifecycle.tgz --exclude log -C Builder\bin . -C ..\..\Launcher\bin . -C ..\..\WebAppServer\bin . || exit /b 1
 for /f "tokens=*" %%a in ('git rev-parse --short HEAD') do (
     set VAR=%%a
